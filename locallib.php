@@ -19,7 +19,9 @@
  *
  * @package    enrol_grabber
  * @copyright  2016 Unistra {@link http://unistra.fr}
+ * @copyright  2010 Petr Skoda {@link http://skodak.org}
  * @author Celine Perves <cperves@unistra.fr>
+ * @copyright  2010 Sam Hemelryk
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 

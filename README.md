@@ -46,5 +46,3 @@ File any bugs, improvements, or feature requiests in our [issue tracker][issues]
 
 ## License
 * http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
-[my_external_private_files_github]: 
-[issues]: 

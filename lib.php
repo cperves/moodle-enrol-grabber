@@ -19,6 +19,7 @@
  *
  * @package    enrol_grabber
  * @copyright  2016 Unistra {@link http://unistra.fr}
+ * @copyright  2010 Petr Skoda {@link http://skodak.org}
  * @author Celine Perves <cperves@unistra.fr>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
@@ -149,7 +150,6 @@ class enrol_grabber_plugin extends enrol_plugin {
         $fields = array(
             'status'          => $this->get_config('status'),
             'roleid'          => $this->get_config('roleid', 0),
-            'enrolperiod'     => $this->get_config('enrolperiod', 0),
         );
         return $this->add_instance($course, $fields);
     }

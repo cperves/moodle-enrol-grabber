@@ -108,10 +108,7 @@ YUI.add('moodle-enrol_grabber-quickenrolment', function(Y) {
                                 .append(create('<div class="'+CSS.COLLAPSIBLEHEADING+'"><img alt="" />'+M.util.get_string('enrolmentoptions', 'enrol')+'</div>'))
                                 .append(create('<div class="'+CSS.COLLAPSIBLEAREA+' '+CSS.HIDDEN+'"></div>')
                                     .append(recovergrades)
-                                    .append(create('<div class="'+CSS.ENROLMENTOPTION+' '+CSS.STARTDATE+'">'+M.util.get_string('startingfrom', 'moodle')+'</div>')
-                                        .append(create('<select></select>')))
-                                    .append(create('<div class="'+CSS.ENROLMENTOPTION+' '+CSS.DURATION+'">'+M.util.get_string('enrolperiod', 'enrol')+'</div>')
-                                        .append(create('<select><option value="0" selected="selected">'+M.util.get_string('unlimitedduration', 'enrol')+'</option></select>')))
+
                                 )
                             )
                         )
@@ -177,8 +174,6 @@ YUI.add('moodle-enrol_grabber-quickenrolment', function(Y) {
             }
 
             this.get(UEP.BASE).one('.'+CSS.SEARCHOPTIONS+' .'+CSS.COLLAPSIBLEHEADING).one('img').setAttribute('src', M.util.image_url(collapsedimage, 'moodle'));
-            this.populateStartDates();
-            this.populateDuration();
             this.get(UEP.BASE).one('.'+CSS.SEARCHOPTIONS+' .'+CSS.COLLAPSIBLEHEADING).on('click', function(){
                 this.get(UEP.BASE).one('.'+CSS.SEARCHOPTIONS+' .'+CSS.COLLAPSIBLEHEADING).toggleClass(CSS.ACTIVE);
                 this.get(UEP.BASE).one('.'+CSS.SEARCHOPTIONS+' .'+CSS.COLLAPSIBLEAREA).toggleClass(CSS.HIDDEN);
@@ -208,36 +203,6 @@ YUI.add('moodle-enrol_grabber-quickenrolment', function(Y) {
                 Y.one('#id_enrol_grabber_assignable_roles').focus();
             }, this);
             this.getAssignableRoles();
-        },
-        populateStartDates : function() {
-            var select = this.get(UEP.BASE).one('.'+CSS.ENROLMENTOPTION+'.'+CSS.STARTDATE+' select');
-            var defaultvalue = this.get(UEP.DEFAULTSTARTDATE);
-            var options = this.get(UEP.OPTIONSTARTDATE);
-            var index = 0, count = 0;
-            for (var i in options) {
-                var option = create('<option value="'+i+'">'+options[i]+'</option>');
-                if (i == defaultvalue) {
-                    index = count;
-                }
-                select.append(option);
-                count++;
-            }
-            select.set('selectedIndex', index);
-        },
-        populateDuration : function() {
-            var select = this.get(UEP.BASE).one('.'+CSS.ENROLMENTOPTION+'.'+CSS.DURATION+' select');
-            var defaultvalue = this.get(UEP.DEFAULTDURATION);
-            var index = 0, count = 0;
-            var durationdays = M.util.get_string('durationdays', 'enrol', '{a}');
-            for (var i = 1; i <= 365; i++) {
-                count++;
-                var option = create('<option value="'+i+'">'+durationdays.replace('{a}', i)+'</option>');
-                if (i == defaultvalue) {
-                    index = count;
-                }
-                select.append(option);
-            }
-            select.set('selectedIndex', index);
         },
         getAssignableRoles : function(){
             Y.io(M.cfg.wwwroot+'/enrol/ajax.php', {

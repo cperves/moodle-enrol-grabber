@@ -22,6 +22,7 @@
  *
  * @package    enrol_grabber
  * @copyright  2016 Unistra {@link http://unistra.fr}
+ * @copyright  2010 Sam Hemelryk
  * @author Celine Perves <cperves@unistra.fr>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
