@@ -53,9 +53,9 @@ if ($mform->is_cancelled()) {
 
 } else if ($data = $mform->get_data()) {
     if ($instance->id) {
-        $instance->roleid          	= $data->roleid;
-        $instance->customint2		= !isset($data->customint2)?0:$data->customint2;
-        $instance->name				= $data->name;
+        $instance->roleid               = $data->roleid;
+        $instance->customint2          = !isset($data->customint2)?0:$data->customint2;
+        $instance->name                    = $data->name;
         $instance->timemodified    = time();
         $markdirty = ($instance->status != $data->status);
         $instance->status = $data->status;
@@ -68,17 +68,17 @@ if ($mform->is_cancelled()) {
         }
 
     } else {
-    	//retrieve customint2 value
-    	$course_instances = enrol_get_instances($courseid, false);
-    	$instance_tograb = $course_instances[$data->customint1];
-    	$plugins   = enrol_get_plugins(false);
-    	$tograb_plugin = $plugins[$instance_tograb->enrol];
+         //retrieve customint2 value
+         $course_instances = enrol_get_instances($courseid, false);
+         $instance_tograb = $course_instances[$data->customint1];
+         $plugins   = enrol_get_plugins(false);
+         $tograb_plugin = $plugins[$instance_tograb->enrol];
         $fields = array(
-            'status'			=> $data->status,
-            'roleid'			=> $data->roleid,
-        	'customint1'		=> $data->customint1,
-        	'customint2'		=> $data->customint2,
-        	'customtext1'		=> $tograb_plugin->get_instance_name($instance_tograb)
+            'status'               => $data->status,
+            'roleid'               => $data->roleid,
+             'customint1'          => $data->customint1,
+             'customint2'          => $data->customint2,
+             'customtext1'          => $tograb_plugin->get_instance_name($instance_tograb)
             );
         $plugin->add_instance($course, $fields);     
     }

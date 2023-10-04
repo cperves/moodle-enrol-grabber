@@ -30,3 +30,7 @@ $string['cantusewithoutinstances']='Vous ne pouvez pas utiliser cette méthode d
 $string['alreadygrabbedinstance'] = 'Cette instance est déjà sélectionné par un autre récupérateur d\'inscriptions dans ce cours.';
 $string['deleteback']='Lors de la suppression de cette instance, restaurer toutes les inscriptions de cette instance dans la méthode d\'inscription associée';
 $string['deleteback_desc']='Lors de la suppression de cette instance, restaurer toutes les inscriptions de cette instance dans la méthode d\'inscription associée';
+$string['privacy:metadata'] = 'Le plugin \'Récupérateur d\'inscriptions\' ne stoque aucune donnée personnelle.';
+$string['grabbedenrolmethod'] = 'Méthode d\'inscription aspirée';
+$string['notattachedgrabber'] = 'Instance de récupérateur d\'inscriptions non attachée';
+$string['notattachedgrabberpreviouslya'] = 'Instance de récupérateur d\'inscriptions détachée, auparavant \'{$a}\'';

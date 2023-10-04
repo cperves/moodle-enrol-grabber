@@ -37,3 +37,7 @@ $string['cantusewithoutinstances']='Can\'t use this enrol method without other e
 $string['alreadygrabbedinstance'] = 'This enrol instance is already grabbed by a grabbed enrol method in this course.';
 $string['deleteback']='While deleting this instance, restore all enrollments of this instance to the associated enrol method';
 $string['deleteback_desc']='While deleting this instance, restore all enrollments of this instance to the associated enrol method';
+$string['privacy:metadata'] = 'The grabber enrolments plugin does not store any personal data.';
+$string['grabbedenrolmethod'] = 'Grabbed enrolled method';
+$string['notattachedgrabber'] = 'Not attached grabber instance';
+$string['notattachedgrabberpreviouslya'] = 'Detached grabber instance, previouly \'{$a}\'';

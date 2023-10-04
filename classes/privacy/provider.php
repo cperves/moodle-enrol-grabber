@@ -13,19 +13,29 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
-
 /**
- * grabber enrolment plugin version specification.
+ * Privacy Subsystem implementation for enrol_manual.
  *
  * @package    enrol_grabber
- * @copyright  2016 Unistra {@link http://unistra.fr}
- * @author Celine Perves <cperves@unistra.fr>
- * @author Matthieu Fuchs <matfuchs@unistra.fr>
+ * @author  2019 Céline Pervès <cperves@unistra.fr>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-
+namespace enrol_grabber\privacy;
 defined('MOODLE_INTERNAL') || die();
-
-$plugin->version   = 2023052400;        // The current plugin version (Date: YYYYMMDDXX)
-$plugin->requires  = 2022041904;        // Requires this Moodle version
-$plugin->component = 'enrol_grabber';    // Full name of the plugin (used for diagnostics)
+/**
+ * Privacy Subsystem for enrol_grabber implementing null_provider.
+ *
+ * @copyright  2019 Céline Pervès <cperves@unistra.fr>
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
+class provider implements \core_privacy\local\metadata\null_provider {
+    /**
+     * Get the language string identifier with the component's language
+     * file to explain why this plugin stores no data.
+     *
+     * @return  string
+     */
+    public static function get_reason() : string {
+        return 'privacy:metadata';
+    }
+}

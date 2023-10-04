@@ -74,7 +74,12 @@ switch ($action) {
         $addedenrollment = optional_param('enrolcount', 0, PARAM_INT);
         $perpage = optional_param('perpage', 25, PARAM_INT);  //  This value is hard-coded to 25 in quickenrolment.js
         $outcome->response = $manager->get_potential_users($enrolid, $search, $searchanywhere, $page, $perpage, $addedenrollment);
-        $extrafields = get_extra_user_fields($context);
+        if (class_exists('\core_user\fields')) {
+            $extrafields = \core_user\fields::for_identity($context, false)
+                ->get_required_fields();
+        else {
+            $extrafields = get_extra_user_fields($context);
+        }
         $useroptions = array();
         // User is not enrolled yet, either link to site profile or do not link at all.
         if (has_capability('moodle/user:viewdetails', context_system::instance())) {
@@ -178,7 +183,6 @@ switch ($action) {
         }
         $outcome->success = true;
         break;
-
     default:
         throw new enrol_ajax_exception('unknowajaxaction');
 }

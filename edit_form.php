@@ -20,7 +20,6 @@
  *
  * @package    enrol_grabber
  * @copyright  2016 Unistra {@link http://unistra.fr}
- * @copyright  2010 Petr Skoda {@link http://skodak.org}
  * @author Celine Perves <cperves@unistra.fr>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
@@ -59,23 +58,31 @@ class enrol_grabber_edit_form extends moodleform {
         $mform->setType('courseid', PARAM_INT);
         $mform->addElement('hidden', 'id');
         $mform->setType('id', PARAM_INT);
-		
+          
         $enrol_instances = enrol_get_instances($instance->courseid, false);
         $plugins   = enrol_get_plugins(false);
         $options = array();
-        foreach($enrol_instances as $enrol_instance){
-        	if(!$instance->id || ($instance->id && $enrol_instance->id != $instance->id)){
-        		$plugin = $plugins[$enrol_instance->enrol];
-        		$options[$enrol_instance->id] = $plugin->get_instance_name($enrol_instance);
-        	}
+        // When restoring in new course no enrol instance can be possible so -1 value
+        if ($instance->id && $instance->customint1 == -1) {
+            $options[-1] = $plugin->get_instance_name($instance->customtext1);
+        } else {
+            if (defined('BEHAT_SITE_RUNNING') && !$instance->id) {
+                $options[-1] = get_string('notattachedgrabber', 'enrol_grabber');
+            }
+            foreach($enrol_instances as $enrol_instance){
+                if(!$instance->id || ($instance->id && $enrol_instance->id != $instance->id)){
+                    $plugin = $plugins[$enrol_instance->enrol];
+                    $options[$enrol_instance->id] = $plugin->get_instance_name($enrol_instance);
+                }
+            }
         }
         if ($instance->id) {
-        	$mform->addElement('text', 'customtext1', get_string('grabberenrolinstance', 'enrol_grabber'), $instance->customtext1);
-        	$mform->addElement('hidden', 'customint1', $instance->customint1);
+             $mform->addElement('text', 'customtext1', get_string('grabberenrolinstance', 'enrol_grabber'), $instance->customtext1);
+             $mform->addElement('hidden', 'customint1', $instance->customint1);
         }else if (count($options) == 0 ){
-        	print_error(get_string('cantusewithoutinstances','enrol_grabber'));
+             throw new moodle_exception(get_string('cantusewithoutinstances','enrol_grabber'));
         }else{
-        	$mform->addElement('select', 'customint1', get_string('grabberenrolinstance', 'enrol_grabber'), $options);
+             $mform->addElement('select', 'customint1', get_string('grabberenrolinstance', 'enrol_grabber'), $options);
         }
         //not modifying associateenrolinstance
         //associateenrolinstance is the id of the grabber enrol instance, for same course
@@ -83,7 +90,7 @@ class enrol_grabber_edit_form extends moodleform {
         $mform->setType('customtext1', PARAM_RAW);
         
         if($instance->id){
-        	$mform->hardFreeze('customtext1');
+             $mform->hardFreeze('customtext1');
         }
         $mform->addElement('checkbox','customint2',get_string('deleteback','enrol_grabber'));
         $mform->setType('customint2', PARAM_INT);
@@ -102,14 +109,14 @@ class enrol_grabber_edit_form extends moodleform {
         global $DB;
 
         $errors = parent::validation($data, $files);
-		//customint1 must exists, have same course and not be grabber enrol method
-		//can't grab an already grabbed instance
+          //customint1 must exists, have same course and not be grabber enrol method
+          //can't grab an already grabbed instance
         list($instance, $plugin, $context) = $this->_customdata;
         if(!$instance->id){
-			$results = $DB->get_records_sql('select * from {enrol} where courseid=:courseid and customint1=:customint1 and enrol=\'grabber\'', array('courseid'=> $data['courseid'], 'customint1'=> $data['customint1']));
-			if(count($results)>0){
-				$errors['customint1']=get_string('alreadygrabbedinstance', 'enrol_grabber');
-			}
+               $results = $DB->get_records_sql('select * from {enrol} where courseid=:courseid and customint1=:customint1 and enrol=\'grabber\'', array('courseid'=> $data['courseid'], 'customint1'=> $data['customint1']));
+               if(count($results)>0){
+                    $errors['customint1']=get_string('alreadygrabbedinstance', 'enrol_grabber');
+               }
         }
         return $errors;
     }
@@ -119,13 +126,13 @@ class enrol_grabber_edit_form extends moodleform {
      * @see moodleform::get_data()
      */
     function get_data() {
-    	$datas = parent::get_data();
-    	if(isset($datas)){
-    		if(!property_exists($datas, 'customint2')){
-    			$datas->customint2=0;
-    		}
-    	}
-    	return $datas;
-    	 
+         $datas = parent::get_data();
+         if(isset($datas)){
+              if(!property_exists($datas, 'customint2')){
+                   $datas->customint2=0;
+              }
+         }
+         return $datas;
+          
     }
 }

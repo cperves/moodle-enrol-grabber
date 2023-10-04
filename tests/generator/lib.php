@@ -22,10 +22,10 @@ defined('MOODLE_INTERNAL') || die();
  */
 class enrol_grabber_generator extends testing_data_generator {
 
-	public function create_enrol_instance($enrol, $fields,$course){
-		//retrieve plugin to add instance
-		$plugin = enrol_get_plugin($enrol);
-		return $plugin->add_instance($course, $fields);
-	}
+     public function create_enrol_instance($enrol, $fields,$course){
+          //retrieve plugin to add instance
+          $plugin = enrol_get_plugin($enrol);
+          return $plugin->add_instance($course, $fields);
+     }
 
 }

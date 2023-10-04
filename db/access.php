@@ -19,7 +19,6 @@
  *
  * @package    enrol_grabber
  * @copyright  2016 unistra  {@link http://unistra.fr}
- * @copyright  2010 Petr Skoda {@link http://skodak.org}
  * @author  Celine Perves <cperves@unistra.fr>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
@@ -34,18 +33,18 @@ $capabilities = array(
         'contextlevel' => CONTEXT_COURSE,
         'archetypes' => array(
             'manager' => CAP_ALLOW,
-        	'editingteacher' => CAP_ALLOW
+             'editingteacher' => CAP_ALLOW
         )
     ),
-	/* remove grabber enrol instance */
-	'enrol/grabber:delete' => array(
-			'captype' => 'write',
-			'contextlevel' => CONTEXT_COURSE,
-			'archetypes' => array(
-					'manager' => CAP_ALLOW,
-					'editingteacher' => CAP_ALLOW
-			)
-	),
+     /* remove grabber enrol instance */
+     'enrol/grabber:delete' => array(
+               'captype' => 'write',
+               'contextlevel' => CONTEXT_COURSE,
+               'archetypes' => array(
+                         'manager' => CAP_ALLOW,
+                         'editingteacher' => CAP_ALLOW
+               )
+     ),
 
     /* Enrol anybody. */
     'enrol/grabber:enrol' => array(

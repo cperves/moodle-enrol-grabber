@@ -91,7 +91,7 @@ if ($canenrol && optional_param('add', false, PARAM_BOOL) && confirm_sesskey()) 
     $userstoassign = $potentialuserselector->get_selected_users();
     if (!empty($userstoassign)) {
         foreach($userstoassign as $adduser) {
-        	$enrol_grabber->enrol_user($instance, $adduser->id, $roleid);
+             $enrol_grabber->enrol_user($instance, $adduser->id, $roleid);
         }
 
         $potentialuserselector->invalidate_selected_users();
@@ -141,8 +141,6 @@ $removeenabled = $canunenrol ? '' : 'disabled="disabled"';
 
               <p><label for="menuroleid"><?php print_string('assignrole', 'enrol_grabber') ?></label><br />
               <?php echo html_writer::select($roles, 'roleid', $roleid, false); ?></p>
-
-              //TODO add new parameters
               </div>
           </div>
 

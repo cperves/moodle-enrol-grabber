@@ -18,9 +18,8 @@
  * grabber enrolment plugin main library file.
  *
  * @package    enrol_grabber
- * @copyright  2016 Unistra {@link http://unistra.fr}
- * @copyright  2010 Petr Skoda {@link http://skodak.org}
  * @author Celine Perves <cperves@unistra.fr>
+ * @author Matthieu Fuchs <matfuchs@unistra.fr>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
@@ -31,6 +30,10 @@ class enrol_grabber_plugin extends enrol_plugin {
     protected $lasternoller = null;
     protected $lasternollerinstanceid = 0;
 
+    public function roles_protected() {
+        // Users may tweak the roles later.
+        return false;
+    }
 
     public function allow_enrol(stdClass $instance) {
         // Users with enrol cap may unenrol other users manually manually.
@@ -76,24 +79,19 @@ class enrol_grabber_plugin extends enrol_plugin {
     }
 
     /**
-     * Returns enrolment instance manage link.
+     * Return true if we can add a new instance to this course.
      *
-     * By defaults looks for manage.php file and tests for manage capability.
-     *
-     * @param navigation_node $instancesnode
-     * @param stdClass $instance
-     * @return moodle_url;
+     * @param int $courseid
+     * @return boolean
      */
-    public function add_course_navigation($instancesnode, stdClass $instance) {
-        if ($instance->enrol !== 'grabber') {
-             throw new coding_exception('Invalid enrol instance type!');
-        }
+    public function can_add_instance($courseid) {
+        global $DB;
 
-        $context = context_course::instance($instance->courseid);
-        if (has_capability('enrol/grabber:config', $context)) {
-            $managelink = new moodle_url('/enrol/grabber/edit.php', array('courseid'=>$instance->courseid, 'id' => $instance->id));
-            $instancesnode->add($this->get_instance_name($instance), $managelink, navigation_node::TYPE_SETTING);
+        $context = context_course::instance($courseid, MUST_EXIST);
+        if (!has_capability('moodle/course:enrolconfig', $context) or !has_capability('enrol/manual:config', $context)) {
+            return false;
         }
+        return true;
     }
 
     /**
@@ -110,35 +108,14 @@ class enrol_grabber_plugin extends enrol_plugin {
         $context = context_course::instance($instance->courseid);
 
         $icons = array();
-
         if (has_capability('enrol/grabber:enrol', $context) or has_capability('enrol/grabber:unenrol', $context)) {
             $managelink = new moodle_url("/enrol/grabber/manage.php", array('enrolid'=>$instance->id));
             $icons[] = $OUTPUT->action_icon($managelink, new pix_icon('t/enrolusers', get_string('enrolusers', 'enrol_grabber'), 'core', array('class'=>'iconsmall')));
         }
-        if (has_capability('enrol/grabber:config', $context)) {
-            $editlink = new moodle_url("/enrol/grabber/edit.php", array('courseid'=>$instance->courseid, 'id'=> $instance->id));
-            $icons[] = $OUTPUT->action_icon($editlink, new pix_icon('t/edit', get_string('edit'), 'core',
-                    array('class' => 'iconsmall')));
-        }
+        $parenticons = parent::get_action_icons($instance);
+        $icons = array_merge($icons, $parenticons);
 
         return $icons;
-    }
-
-    /**
-     * Returns link to page which may be used to add new instance of enrolment plugin in course.
-     * @param int $courseid
-     * @return moodle_url page url
-     */
-    public function get_newinstance_link($courseid) {
-        global $DB;
-
-        $context = context_course::instance($courseid, MUST_EXIST);
-
-        if (!has_capability('moodle/course:enrolconfig', $context) or !has_capability('enrol/grabber:config', $context)) {
-            return NULL;
-        }
-
-        return new moodle_url('/enrol/grabber/edit.php', array('courseid'=>$courseid));
     }
 
     /**
@@ -167,8 +144,10 @@ class enrol_grabber_plugin extends enrol_plugin {
      * @return enrol_user_button
      */
     public function get_manual_enrol_button(course_enrolment_manager $manager) {
-        global $CFG;
+        global $CFG, $PAGE;
         require_once($CFG->dirroot.'/cohort/lib.php');
+
+        static $called = false;
 
         $instance = null;
         $instances = array();
@@ -180,54 +159,27 @@ class enrol_grabber_plugin extends enrol_plugin {
                 $instances[] = array('id' => $tempinstance->id, 'name' => $this->get_instance_name($tempinstance));
             }
         }
-        if (empty($instance)) {
+        if (empty($instances)) {
             return false;
         }
 
-        if (!$manuallink = $this->get_manual_enrol_link($instance)) {
+        $link = $this->get_manual_enrol_link($instance);
+        if (!$link) {
             return false;
         }
 
-        $button = new enrol_user_button($manuallink, get_string('enrolusers', 'enrol_grabber'), 'get');
+        $button = new enrol_user_button($link, get_string('enrolusers', 'enrol_grabber'), 'get');
         $button->class .= ' enrol_grabber_plugin';
+        $button->primary = true;
 
-       
-        $modules = array('moodle-enrol_grabber-quickenrolment', 'moodle-enrol_grabber-quickenrolment-skin');
-        $arguments = array(
-            'instances'           => $instances,
-            'courseid'            => $instance->courseid,
-            'ajaxurl'             => '/enrol/grabber/ajax.php',
-            'url'                 => $manager->get_moodlepage()->url->out(false),
-            'defaultRole'         => $instance->roleid,
-            'disableGradeHistory' => $CFG->disablegradehistory,
-            'recoverGradesDefault'=> '',
-        );
+        $context = context_course::instance($instance->courseid);
+        $arguments = array('contextid' => $context->id);
 
-        if ($CFG->recovergradesdefault) {
-            $arguments['recoverGradesDefault'] = ' checked="checked"';
+        if (!$called) {
+            $called = true;
+            // Calling the following more than once will cause unexpected results.
+            $PAGE->requires->js_call_amd('enrol_manual/quickenrolment', 'init', array($arguments));
         }
-
-        $function = 'M.enrol_grabber.quickenrolment.init';
-        $button->require_yui_module($modules, $function, array($arguments));
-        $button->strings_for_js(array(
-            'ajaxoneuserfound',
-            'ajaxxusersfound',
-            'ajaxnext25',
-            'enrol',
-            'enrolmentoptions',
-            'enrolusers',
-            'enrolxusers',
-            'errajaxfailedenrol',
-            'errajaxsearch',
-            'foundxcohorts',
-            'none',
-            'usersearch',
-            'finishenrollingusers',
-            'recovergrades'), 'enrol');
-        $button->strings_for_js(array('browseusers', 'browsecohorts'), 'enrol_grabber');
-        $button->strings_for_js('assignroles', 'role');
-        //TODO check this
-        $button->strings_for_js('startingfrom', 'moodle');
 
         return $button;
     }
@@ -267,30 +219,6 @@ class enrol_grabber_plugin extends enrol_plugin {
     }
 
     /**
-     * Gets an array of the user enrolment actions.
-     *
-     * @param course_enrolment_manager $manager
-     * @param stdClass $ue A user enrolment object
-     * @return array An array of user_enrolment_actions
-     */
-    public function get_user_enrolment_actions(course_enrolment_manager $manager, $ue) {
-        $actions = array();
-        $context = $manager->get_context();
-        $instance = $ue->enrolmentinstance;
-        $params = $manager->get_moodlepage()->url->params();
-        $params['ue'] = $ue->id;
-        if ($this->allow_unenrol_user($instance, $ue) && has_capability("enrol/grabber:unenrol", $context)) {
-            $url = new moodle_url('/enrol/unenroluser.php', $params);
-            $actions[] = new user_enrolment_action(new pix_icon('t/delete', ''), get_string('unenrol', 'enrol'), $url, array('class'=>'unenrollink', 'rel'=>$ue->id));
-        }
-        if ($this->allow_manage($instance) && has_capability("enrol/grabber:manage", $context)) {
-            $url = new moodle_url('/enrol/editenrolment.php', $params);
-            $actions[] = new user_enrolment_action(new pix_icon('t/edit', ''), get_string('edit'), $url, array('class'=>'editenrollink', 'rel'=>$ue->id));
-        }
-        return $actions;
-    }
-
-    /**
      * The grabber plugin has several bulk operations that can be performed.
      * @param course_enrolment_manager $manager
      * @return array
@@ -300,10 +228,10 @@ class enrol_grabber_plugin extends enrol_plugin {
         require_once($CFG->dirroot.'/enrol/grabber/locallib.php');
         $context = $manager->get_context();
         $bulkoperations = array();
-        if (has_capability("enrol/manual:manage", $context)) {
+        if (has_capability("enrol/grabber:manage", $context)) {
             $bulkoperations['editselectedusers'] = new enrol_grabber_editselectedusers_operation($manager, $this);
         }
-        if (has_capability("enrol/manual:grabber", $context)) {
+        if (has_capability("enrol/grabber:manage", $context)) {
             $bulkoperations['deleteselectedusers'] = new enrol_grabber_deleteselectedusers_operation($manager, $this);
         }
         return $bulkoperations;
@@ -319,8 +247,19 @@ class enrol_grabber_plugin extends enrol_plugin {
      */
     public function restore_instance(restore_enrolments_structure_step $step, stdClass $data, $course, $oldid) {
         global $DB;
-        // There is only I manual enrol instance allowed per course.
-        if ($instances = $DB->get_records('enrol', array('courseid'=>$data->courseid, 'enrol'=>'grabber'), 'id')) {
+        if ($step->get_task()->get_target() == backup::TARGET_NEW_COURSE) {
+            $merge = false;
+        } else {
+            $merge = array(
+                'courseid'      => $data->courseid,
+                'enrol'         => $this->get_name(),
+                'roleid'        => $data->roleid,
+                'customint1'    => $data->customint1,
+                'customtext1'   => $data->customtext1,
+                'customint2'    => $data->customint2
+            );
+        }
+        if ($merge and $instances = $DB->get_records('enrol', $merge, 'id')) {
             $instance = reset($instances);
             $instanceid = $instance->id;
         } else {
@@ -339,47 +278,7 @@ class enrol_grabber_plugin extends enrol_plugin {
      * @param int $userid
      */
     public function restore_user_enrolment(restore_enrolments_structure_step $step, $data, $instance, $userid, $oldinstancestatus) {
-        global $DB;
-        
-        //TODO
-
-        // Note: this is a bit tricky because other types may be converted to manual enrolments,
-        //       and manual is restricted to one enrolment per user.
-
-        $ue = $DB->get_record('user_enrolments', array('enrolid'=>$instance->id, 'userid'=>$userid));
-        $enrol = false;
-        if ($ue and $ue->status == ENROL_USER_ACTIVE) {
-            // We do not want to restrict current active enrolments, let's kind of merge the times only.
-            // This prevents some teacher lockouts too.
-            if ($data->status == ENROL_USER_ACTIVE) {
-                if ($data->timestart > $ue->timestart) {
-                    $data->timestart = $ue->timestart;
-                    $enrol = true;
-                }
-
-                if ($data->timeend == 0) {
-                    if ($ue->timeend != 0) {
-                        $enrol = true;
-                    }
-                } else if ($ue->timeend == 0) {
-                    $data->timeend = 0;
-                } else if ($data->timeend < $ue->timeend) {
-                    $data->timeend = $ue->timeend;
-                    $enrol = true;
-                }
-            }
-        } else {
-            if ($instance->status == ENROL_INSTANCE_ENABLED and $oldinstancestatus != ENROL_INSTANCE_ENABLED) {
-                // Make sure that user enrolments are not activated accidentally,
-                // we do it only here because it is not expected that enrolments are migrated to other plugins.
-                $data->status = ENROL_USER_SUSPENDED;
-            }
-            $enrol = true;
-        }
-
-        if ($enrol) {
-            $this->enrol_user($instance, $userid, null, $data->timestart, $data->timeend, $data->status);
-        }
+        $this->enrol_user($instance, $userid, null, $data->timestart, $data->timeend, $data->status);
     }
 
     /**
@@ -432,53 +331,197 @@ class enrol_grabber_plugin extends enrol_plugin {
         $context = context_course::instance($instance->courseid);
         return has_capability('enrol/grabber:config', $context);
     }
+
+    /**
+     * Return an array of valid options for the status.
+     *
+     * @return array
+     */
+    protected function get_status_options() {
+        $options = array(ENROL_INSTANCE_ENABLED  => get_string('yes'),
+            ENROL_INSTANCE_DISABLED => get_string('no'));
+        return $options;
+    }
+
+    /**
+     * Return an array of valid options for the roleid.
+     *
+     * @param stdClass $instance
+     * @param context $context
+     * @return array
+     */
+    protected function get_roleid_options($instance, $context) {
+        if ($instance->id) {
+            $roles = get_default_enrol_roles($context, $instance->roleid);
+        } else {
+            $roles = get_default_enrol_roles($context, $this->get_config('roleid'));
+        }
+        return $roles;
+    }
+
     /**
      * override
      * (non-PHPdoc)
      * @see enrol_plugin::get_instance_name()
      */
     public function get_instance_name($instance) {
-    	global $DB;
-    
-    	if (empty($instance->name)) {
-    		$enrol = $this->get_name();
-    		return get_string('pluginname', 'enrol_'.$enrol) .' ('. $instance->customtext1.')';
-    	} else {
-    		return format_string($instance->name);
-    	}
+        global $DB;
+        if (empty($instance->name)) {
+            $enrol = $this->get_name();
+            return get_string('pluginname', 'enrol_'.$enrol) .' ('. $instance->customtext1.')';
+        } else {
+            return format_string($instance->name);
+        }
     }
-    
+    /**
+     * Add elements to the edit instance form.
+     *
+     * @param stdClass $instance
+     * @param MoodleQuickForm $mform
+     * @param context $context
+     * @return bool
+     */
+    public function edit_instance_form($instance, MoodleQuickForm $mform, $context) {
+        $options = $this->get_status_options();
+        $mform->addElement('select', 'status', get_string('status', 'enrol_grabber'), $options);
+        $mform->addHelpButton('status', 'status', 'enrol_manual');
+        $mform->setDefault('status', $this->get_config('status'));
+
+        $mform->addElement('text', 'name', get_string('custominstancename', 'enrol'));
+        $mform->setType('name', PARAM_TEXT);
+
+        if ($instance->id) {
+            $roles = get_default_enrol_roles($context, $instance->roleid);
+        } else {
+            $roles = get_default_enrol_roles($context, $this->get_config('roleid'));
+        }
+        $mform->addElement('select', 'roleid', get_string('defaultrole', 'role'), $roles);
+        $mform->setDefault('roleid', $this->get_config('roleid'));
+        $mform->addElement('hidden', 'courseid');
+        $mform->setType('courseid', PARAM_INT);
+        $mform->addElement('hidden', 'id');
+        $mform->setType('id', PARAM_INT);
+
+        $enrol_instances = enrol_get_instances($instance->courseid, false);
+        $plugins   = enrol_get_plugins(false);
+        $options = array();
+        // When restoring in new course no enrol instance can be possible so -1 value
+        if ($instance->id && $instance->customint1 == -1) {
+            $options[-1] = $instance->customtext1;
+        } else {
+            if (defined('BEHAT_SITE_RUNNING') && !$instance->id) {
+                $options[-1] = get_string('notattachedgrabber', 'enrol_grabber');
+            }
+            foreach($enrol_instances as $enrol_instance){
+                if(!$instance->id || ($instance->id && $enrol_instance->id != $instance->id)){
+                    $plugin = $plugins[$enrol_instance->enrol];
+                    $options[$enrol_instance->id] = $plugin->get_instance_name($enrol_instance);
+                }
+            }
+        }
+        if ($instance->id) {
+            $mform->addElement('text', 'customtext1', get_string('grabberenrolinstance', 'enrol_grabber'), $options[$instance->customint1]);
+            $mform->addElement('hidden', 'customint1', $instance->customint1);
+        }else if (count($options) == 0 ){
+            throw new moodle_exception(get_string('cantusewithoutinstances','enrol_grabber'));
+        }else{
+            $mform->addElement('select', 'customint1', get_string('grabberenrolinstance', 'enrol_grabber'), $options);
+        }
+        //not modifying associateenrolinstance
+        //associateenrolinstance is the id of the grabber enrol instance, for same course
+        $mform->setType('customint1', PARAM_INT);
+        $mform->setType('customtext1', PARAM_RAW);
+
+        if($instance->id){
+            $mform->hardFreeze('customtext1');
+        }
+        $mform->addElement('checkbox','customint2',get_string('deleteback','enrol_grabber'));
+        $mform->setType('customint2', PARAM_INT);
+        $mform->setDefault('customint2', get_config('enrol_grabber','deleteback'));
+
+        if (enrol_accessing_via_instance($instance)) {
+            $mform->addElement('static', 'selfwarn', get_string('instanceeditselfwarning', 'core_enrol'), get_string('instanceeditselfwarningtext', 'core_enrol'));
+        }
+
+    }
+
+    /**
+     * Perform custom validation of the data used to edit the instance.
+     *
+     * @param array $data array of ("fieldname"=>value) of submitted data
+     * @param array $files array of uploaded files "element_name"=>tmp_file_path
+     * @param object $instance The instance loaded from the DB
+     * @param context $context The context of the instance we are editing
+     * @return array of "element_name"=>"error_description" if there are errors,
+     *         or an empty array if everything is OK.
+     * @return void
+     */
+    public function edit_instance_validation($data, $files, $instance, $context) {
+        global $DB;
+        $errors = array();
+        //customint1 must exists, have same course and not be grabber enrol method
+        //can't grab an already grabbed instance
+        if(!$instance->id){
+            $results = $DB->get_records_sql('select * from {enrol} where courseid=:courseid and customint1=:customint1 and enrol=\'grabber\'', array('courseid'=> $data['courseid'], 'customint1'=> $data['customint1']));
+            if(count($results)>0){
+                $errors['customint1']=get_string('alreadygrabbedinstance', 'enrol_grabber');
+            }
+        }
+        return $errors;
+    }
+
     /**
      * Delete course enrol plugin instance, unenrol all users.
      * @param object $instance
      * @return void
      */
     public function delete_instance($instance) {
-    	global $CFG;
-    	require_once($CFG->dirroot.'/enrol/grabber/locallib.php');
-    	if($instance->customint2==1){
-    		//before delete instance give back enrollees to associated enrol instance if already exists
-    		$course_instances = enrol_get_instances($instance->courseid, false);
-    		$associated_instance  = $course_instances[$instance->customint1];
-    		if($associated_instance ){
-    			enrol_grabber_utilities::grab_plugin_enrolments($associated_instance, $instance);
-    		} 
-    	}
-    	parent::delete_instance($instance);
+        global $CFG;
+        require_once($CFG->dirroot.'/enrol/grabber/locallib.php');
+        if($instance->customint2==1){
+            //before delete instance give back enrollees to associated enrol instance if already exists
+            $course_instances = enrol_get_instances($instance->courseid, false);
+            $associated_instance  = $course_instances[$instance->customint1];
+            if($associated_instance ){
+                enrol_grabber_utilities::grab_plugin_enrolments($associated_instance, $instance);
+            }
+        }
+        parent::delete_instance($instance);
     }
-    
+
     public function add_instance($course, array $fields = NULL) {
-    	global $CFG;
-    	require_once($CFG->dirroot.'/enrol/grabber/locallib.php');
-    	$grabber_instanceid = parent::add_instance($course, $fields);
-    	$course_instances = enrol_get_instances($course->id, false);
-    	$instance_tograb = $course_instances[$fields['customint1']];
-    	$course_instances = enrol_get_instances($course->id, false);
-    	$grabber_instance = $course_instances[$grabber_instanceid];
-    	// grab enrolles from other instance
-    	//grab enrollments
-    	enrol_grabber_utilities::grab_plugin_enrolments($grabber_instance, $instance_tograb);
-    	return $grabber_instanceid;
-    	
+        global $CFG;
+        require_once($CFG->dirroot.'/enrol/grabber/locallib.php');
+        $course_instances = enrol_get_instances($course->id, false);
+        $instancetograb = null;
+        $plugins   = enrol_get_plugins(false);
+        if (array_key_exists($fields['customint1'], $course_instances) && !empty($fields['customint1'])) {
+            $instancetograb = $course_instances[$fields['customint1']];
+            $plugin = $plugins[$instancetograb->enrol];
+            $fields['customtext1'] = $plugin->get_instance_name($instancetograb);
+        } else {
+            $fields['customtext1'] =
+                (!empty($fields['customtext1'])?
+                    get_string('notattachedgrabberpreviouslya','enrol_grabber',$fields['customtext1'])
+                    : get_string('notattachedgrabber', 'enrol_grabber'));
+            $fields['customint1'] = -1;
+        }
+        // grab enrolles from other instance
+        $grabber_instanceid = parent::add_instance($course, $fields);
+        $course_instances = enrol_get_instances($course->id, false);
+        $grabber_instance = $course_instances[$grabber_instanceid];
+        //grab enrollments
+        enrol_grabber_utilities::grab_plugin_enrolments($grabber_instance, $instancetograb);
+        return $grabber_instanceid;
+
+    }
+
+    /**
+     * We are a good plugin and don't invent our own UI/validation code path.
+     *
+     * @return boolean
+     */
+    public function use_standard_editing_ui() {
+        return true;
     }
 }

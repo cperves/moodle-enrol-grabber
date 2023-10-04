@@ -16,7 +16,6 @@
 
 /**
  * This file contains form for bulk changing user enrolments.
- *
  * @package    enrol_grabber
  * @copyright  2016 Unistra
  * @copyright  2010 Sam Hemelryk

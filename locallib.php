@@ -18,17 +18,15 @@
  * Auxiliary grabber user enrolment lib, the main purpose is to lower memory requirements...
  *
  * @package    enrol_grabber
- * @copyright  2016 Unistra {@link http://unistra.fr}
- * @copyright  2010 Petr Skoda {@link http://skodak.org}
+ * @copyright  2022 Univeristé de Strasbourg {@link http://unistra.fr}
  * @author Celine Perves <cperves@unistra.fr>
- * @copyright  2010 Sam Hemelryk
+ * @author Matthieu Fuchs <matfuchs@unistra.fr>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
 defined('MOODLE_INTERNAL') || die();
 
 require_once($CFG->dirroot . '/user/selector/lib.php');
-require_once($CFG->dirroot . '/enrol/locallib.php');
 require_once($CFG->dirroot . '/enrol/manual/locallib.php');
 
 
@@ -98,6 +96,8 @@ class enrol_grabber_editselectedusers_operation extends enrol_manual_editselecte
 
         // Collect the known properties.
         $status = $properties->status;
+        $timestart = $properties->timestart;
+        $timeend = $properties->timeend;
 
         list($ueidsql, $params) = $DB->get_in_or_equal($ueids, SQL_PARAMS_NAMED);
 
@@ -106,7 +106,16 @@ class enrol_grabber_editselectedusers_operation extends enrol_manual_editselecte
             $updatesql[] = 'status = :status';
             $params['status'] = (int)$status;
         }
-         if (empty($updatesql)) {
+
+        if (!empty($timestart)) {
+            $updatesql[] = 'timestart = :timestart';
+            $params['timestart'] = (int)$timestart;
+        }
+        if (!empty($timeend)) {
+            $updatesql[] = 'timeend = :timeend';
+            $params['timeend'] = (int)$timeend;
+        }
+        if (empty($updatesql)) {
             return true;
         }
 
@@ -156,12 +165,12 @@ class enrol_grabber_editselectedusers_operation extends enrol_manual_editselecte
      *
      * @param string|moodle_url|null $defaultaction
      * @param mixed $defaultcustomdata
-     * @return enrol_manual_editselectedusers_form
+     * @return enrol_grabber_editselectedusers_form
      */
     public function get_form($defaultaction = null, $defaultcustomdata = null) {
         global $CFG;
         require_once($CFG->dirroot.'/enrol/grabber/bulkchangeforms.php');
-        return new enrol_manual_editselectedusers_form($defaultaction, $defaultcustomdata);
+        return new enrol_grabber_editselectedusers_form($defaultaction, $defaultcustomdata);
     }
 }
 
@@ -180,90 +189,125 @@ class enrol_grabber_deleteselectedusers_operation extends enrol_manual_deletesel
      *
      * @param string|moodle_url|null $defaultaction
      * @param mixed $defaultcustomdata
-     * @return enrol_manual_editselectedusers_form
+     * @return enrol_grabber_deleteselectedusers_form
      */
     public function get_form($defaultaction = null, $defaultcustomdata = null) {
         global $CFG;
-        require_once($CFG->dirroot.'/enrol/manual/bulkchangeforms.php');
+        require_once($CFG->dirroot.'/enrol/grabber/bulkchangeforms.php');
         if (!array($defaultcustomdata)) {
             $defaultcustomdata = array();
         }
         $defaultcustomdata['title'] = $this->get_title();
-        $defaultcustomdata['message'] = get_string('confirmbulkdeleteenrolment', 'enrol_manual');
+        $defaultcustomdata['message'] = get_string('confirmbulkdeleteenrolment', 'enrol_grabber');
         $defaultcustomdata['button'] = get_string('unenrolusers', 'enrol_grabber');
-        return new enrol_manual_deleteselectedusers_form($defaultaction, $defaultcustomdata);
+        return new enrol_grabber_deleteselectedusers_form($defaultaction, $defaultcustomdata);
     }
 
 }
 
 
 class enrol_grabber_utilities{
-	/**
-	 * Migrates all enrolments of the given plugin to enrol_grabber plugin,
-	 *
-	 * NOTE: this function does not trigger role and enrolment related events.
-	 *
-	 * @param string $enrol  The enrolment method.
-	 */
-	public static function grab_plugin_enrolments($grabber_instance, $instance_tograb) {
-		global $DB;
-			
-		$grabber_plugin = enrol_get_plugin('grabber');
-		$course_context = context_course::instance($grabber_instance->courseid);
-	
-		$params = array('enrol'=>$instance_tograb->id, 'courseid' => $grabber_instance->courseid);
-		$sql = "SELECT e.id, e.courseid, e.status
-	              FROM {enrol} e
-	              JOIN {user_enrolments} ue ON (ue.enrolid = e.id)
-	              JOIN {course} c ON (c.id = e.courseid)
-	             WHERE e.id = :enrol and c.id=:courseid
-	          GROUP BY e.id, e.courseid, e.status
-	          ORDER BY e.id";
-		$tograb_enrolles_rs = $DB->get_recordset_sql($sql, $params);
-	
-		foreach($tograb_enrolles_rs as $enrolment_tograb) {
-			// First delete potential role duplicates.
-			//component empty for self and manual so can only check that for the instance with itemid and component
-			$component_to_grab = $instance_tograb->enrol=='manual' || $instance_tograb->enrol == 'self'?'' : 'enrol_'.$instance_tograb->enrol;
-			$itemid_tograb = $instance_tograb->enrol=='manual' || $instance_tograb->enrol == 'self'? 0 : $enrolment_tograb->id;
-			$grabber_component = $grabber_instance->enrol=='manual' || $grabber_instance->enrol == 'self'?'' : 'enrol_'.$grabber_instance->enrol;
-			$grabber_itemid = $grabber_instance->enrol=='manual' || $grabber_instance->enrol == 'self'? 0 : $grabber_instance->id;
-			$params = array('itemidtograb'=> $itemid_tograb, 'componenttograb'=> $component_to_grab, 'grabbercomponent'=>$grabber_component,'grabberitemid'=>$grabber_itemid, 'courseid' => $instance_tograb->courseid);
-			$sql = "SELECT ra.id
-	                  FROM {role_assignments} ra
-	                  JOIN {role_assignments} mra ON (mra.contextid = ra.contextid AND mra.userid = ra.userid AND mra.roleid = ra.roleid AND mra.component = :grabbercomponent AND mra.itemid = :grabberitemid)
-					  JOIN {context} ctx on ctx.id=ra.contextid
-	                 WHERE ra.component = :componenttograb AND ra.itemid = :itemidtograb and ctx.instanceid=:courseid";
-			$ras = $DB->get_records_sql($sql, $params);
-			$ras = array_keys($ras);
-			$DB->delete_records_list('role_assignments', 'id', $ras);
-			unset($ras);
-	
-			// Migrate roles.
-			$sql = "UPDATE {role_assignments}
-	                   SET itemid = :grabberitemid, component = :grabbercomponent
-	                 WHERE itemid = :itemidtograb AND component = :componenttograb and contextid= :coursecontext";
-			$params = array('grabbercomponent' => $grabber_component, 'grabberitemid' => $grabber_itemid,'itemidtograb' => $itemid_tograb, 'componenttograb' => $component_to_grab, 'coursecontext' => $course_context->id);
-			$DB->execute($sql, $params);
-	
-			// Delete potential enrol duplicates.
-			$params = array('id'=>$enrolment_tograb->id, 'mid'=>$grabber_instance->id);
-			$sql = "SELECT ue.id
-	                  FROM {user_enrolments} ue
-	                  JOIN {user_enrolments} mue ON (mue.userid = ue.userid AND mue.enrolid = :mid)
-	                 WHERE ue.enrolid = :id";
-			$ues = $DB->get_records_sql($sql, $params);
-			$ues = array_keys($ues);
-			$DB->delete_records_list('user_enrolments', 'id', $ues);
-			unset($ues);
-	
-			// Migrate to grabber enrol instance.
-			$params = array('id'=>$enrolment_tograb->id, 'mid'=>$grabber_instance->id);
-			$sql = "UPDATE {user_enrolments}
-			SET enrolid = :mid 
-			WHERE enrolid = :id";
-			$DB->execute($sql, $params);
-		}
-		$tograb_enrolles_rs->close();
-	}
+     /**
+      * Migrates all enrolments of the given plugin to enrol_grabber plugin,
+      *
+      * NOTE: this function does not trigger role and enrolment related events.
+      *
+      * @param string $enrol  The enrolment method.
+      */
+     public static function grab_plugin_enrolments($grabber_instance, $instance_tograb) {
+         global $DB;
+         if (!is_null($instance_tograb)) {
+             $grabber_plugin = enrol_get_plugin('grabber');
+             $course_context = context_course::instance($grabber_instance->courseid);
+
+             $params = array('enrol' => $instance_tograb->id, 'courseid' => $grabber_instance->courseid);
+             $sql = "SELECT e.id, e.courseid, e.status
+                   FROM {enrol} e
+                   JOIN {user_enrolments} ue ON (ue.enrolid = e.id)
+                   JOIN {course} c ON (c.id = e.courseid)
+                  WHERE e.id = :enrol and c.id=:courseid
+               GROUP BY e.id, e.courseid, e.status
+               ORDER BY e.id";
+             $tograb_enrolles_rs = $DB->get_recordset_sql($sql, $params);
+
+             foreach ($tograb_enrolles_rs as $enrolment_tograb) {
+                 //component empty for self and manual so can only check that for the instance with itemid and component
+                 $component_to_grab = $instance_tograb->enrol == 'manual' || $instance_tograb->enrol == 'self' ? '' :
+                     'enrol_' . $instance_tograb->enrol;
+                 $itemid_tograb =
+                     $instance_tograb->enrol == 'manual' || $instance_tograb->enrol == 'self' ? 0 : $enrolment_tograb->id;
+                 $grabber_component = $grabber_instance->enrol == 'manual' || $grabber_instance->enrol == 'self' ? '' :
+                     'enrol_' . $grabber_instance->enrol;
+                 $grabber_itemid =
+                     $grabber_instance->enrol == 'manual' || $grabber_instance->enrol == 'self' ? 0 : $grabber_instance->id;
+                 $params = array('itemidtograb' => $itemid_tograb, 'componenttograb' => $component_to_grab,
+                     'grabbercomponent' => $grabber_component, 'grabberitemid' => $grabber_itemid,
+                     'courseid' => $instance_tograb->courseid);
+                 $sql = "SELECT ra.id
+                       FROM {role_assignments} ra
+                       JOIN {role_assignments} mra ON (mra.contextid = ra.contextid AND mra.userid = ra.userid AND mra.roleid = ra.roleid AND mra.component = :grabbercomponent AND mra.itemid = :grabberitemid)
+                           JOIN {context} ctx on ctx.id=ra.contextid
+                      WHERE ra.component = :componenttograb AND ra.itemid = :itemidtograb and ctx.instanceid=:courseid";
+                 $ras = $DB->get_records_sql($sql, $params);
+                 $ras = array_keys($ras);
+                 //$DB->delete_records_list('role_assignments', 'id', $ras);
+                 unset($ras);
+
+                 // Migrate roles.
+                 if (!empty($component_to_grab)) {
+                     $sql = "UPDATE {role_assignments}
+                        SET itemid = :grabberitemid, component = :grabbercomponent
+                      WHERE itemid = :itemidtograb AND component = :componenttograb and contextid= :coursecontext";
+                     $params = array('grabbercomponent' => $grabber_component, 'grabberitemid' => $grabber_itemid,
+                         'itemidtograb' => $itemid_tograb, 'componenttograb' => $component_to_grab,
+                         'coursecontext' => $course_context->id);
+                     $DB->execute($sql, $params);
+                 } else {
+                     //can't simply identify update by which component role_assignments was created
+                     // maybe self or manual
+                     $params = array(
+                         'coursecontext' => CONTEXT_COURSE,
+                         'enrolid' => $instance_tograb->id,
+                         'courseid' => $grabber_instance->courseid
+
+                     );
+                     $sql = "SELECT ra.id
+                       FROM {role_assignments} ra
+                       INNER JOIN {context} ctx on ctx.id=ra.contextid 
+                       INNER JOIN {enrol} e on e.id=:enrolid and e.courseid=ctx.instanceid
+                       INNER JOIN {user_enrolments} ue on ue.userid=ra.userid and e.id=ue.enrolid
+                      WHERE ra.component = '' AND ra.itemid = 0 and ctx.instanceid=:courseid and ctx.contextlevel=:coursecontext";
+                     $ras = $DB->get_records_sql($sql, $params);
+                     $ras = array_keys($ras);
+                     list($rasql, $raparams) = $DB->get_in_or_equal($ras, SQL_PARAMS_NAMED);
+                     $sql = 'UPDATE {role_assignments}
+                        SET itemid = :grabberitemid, component = :grabbercomponent
+                        where id ' . $rasql;
+                     $params = array('grabberitemid' => $grabber_itemid, 'grabbercomponent' => $grabber_component);
+                     $params += $raparams;
+                     $DB->execute($sql, $params);
+
+                 }
+
+                 // Delete potential enrol duplicates.
+                 $params = array('id' => $enrolment_tograb->id, 'enrolid' => $grabber_instance->id);
+                 $sql = "SELECT ue.id
+                       FROM {user_enrolments} ue
+                       JOIN {user_enrolments} mue ON (mue.userid = ue.userid AND mue.enrolid = :enrolid)
+                      WHERE ue.enrolid = :id";
+                 $ues = $DB->get_records_sql($sql, $params);
+                 $ues = array_keys($ues);
+                 $DB->delete_records_list('user_enrolments', 'id', $ues);
+                 unset($ues);
+
+                 // Migrate to grabber enrol instance.
+                 $params = array('id' => $enrolment_tograb->id, 'mid' => $grabber_instance->id);
+                 $sql = "UPDATE {user_enrolments}
+               SET enrolid = :mid 
+               WHERE enrolid = :id";
+                 $DB->execute($sql, $params);
+             }
+             $tograb_enrolles_rs->close();
+         }
+     }
 }
