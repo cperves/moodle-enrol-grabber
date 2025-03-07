@@ -18,7 +18,7 @@
  * grabber enrolment plugin version specification.
  *
  * @package    enrol_grabber
- * @copyright  2016 Unistra {@link http://unistra.fr}
+ * @copyright  2025 Unistra {@link http://unistra.fr}
  * @author Celine Perves <cperves@unistra.fr>
  * @author Matthieu Fuchs <matfuchs@unistra.fr>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
@@ -26,8 +26,8 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->version   = 2023052400;        // The current plugin version (Date: YYYYMMDDXX)
-$plugin->requires  = 20240907;        // Requires this Moodle version
+$plugin->version   = 2025021800;        // The current plugin version (Date: YYYYMMDDXX)
+$plugin->requires  = 2024100701;        // Requires this Moodle version
 $plugin->component = 'enrol_grabber';    // Full name of the plugin (used for diagnostics)
-$plugin->release = '2.1.0';
+$plugin->release = '2.2.0';
 $plugin->maturity   = MATURITY_STABLE;
