@@ -170,7 +170,7 @@ class enrol_grabber_plugin extends enrol_plugin {
 
         $button = new enrol_user_button($link, get_string('enrolusers', 'enrol_grabber'), 'get');
         $button->class .= ' enrol_grabber_plugin';
-        $button->primary = true;
+        $button->type = single_button::BUTTON_PRIMARY;
 
         $context = context_course::instance($instance->courseid);
         $arguments = array('contextid' => $context->id);
